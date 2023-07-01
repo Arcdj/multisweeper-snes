@@ -198,6 +198,8 @@ Start:
     lda #%00000001      ; set hi-res flag, for fun :)
     sta flags
 
+    ; Joost was here =)
+
     stz $2102
     stz $2103           ; oam
     stz $2104
