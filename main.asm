@@ -10,7 +10,10 @@
 .ORG 0
 .SECTION "MainCode"
 
-.DEFINE mines       = 15
+
+.DEFINE boardWidth  = 10
+.DEFINE boardHeight = 10
+.DEFINE mines       = 10
 
 .DEFINE tx          = $00
 .DEFINE ty          = $01
@@ -26,7 +29,7 @@
 .DEFINE c1bx        = $0A
 .DEFINE c1by        = $0B
 .DEFINE p1p         = $0C
-.DEFINE p1p2        = $0D
+; .DEFINE p1p2        = $0D
 .DEFINE p1hold      = $0E
 
 .DEFINE mousex      = $0F
@@ -52,6 +55,8 @@
 
 .DEFINE board       = $7F0000
 
+.DEFINE c_hide      = $1C
+
 
 .DEFINE flags       = $FF
 
@@ -67,7 +72,16 @@ vblank:
     stz $2102 ; oam
     lda c1sx
     sta $2104
+    lda c_hide
+    bit #%00000001
+    beq +
+    eor #%00000001
+    sta c_hide
+    lda #$E1
+    jmp ++
++
     lda c1sy
+++
     sta $2104
 update_tile:
     ldx drawout
@@ -190,7 +204,7 @@ Start:
     sta $212D           ; and sub screen, for fun :)
 
     lda #%00010101
-    sta $2105           ; set background mode to 1, and 16x16 tiles on BG1
+    sta $2105           ; set background mode to 1(or 5, for fun :), and 16x16 tiles on BG1
 
     lda #%00000001
     sta $2133           ; Turn on interlacing for hi-res mode, for fun :)
@@ -209,11 +223,21 @@ Start:
     lda #%00100000
     sta $2104
 
-    lda #$09
+    lda #boardWidth
+    dea
     sta width
+    lda #boardHeight
+    dea
     sta height
 
+    lda flags
+    bit #%00000001
+    beq +
+    lda #$8
+    jmp ++
++
     lda #$10
+++
     sta $211B
     stz $211B           ; set up PPU multiplication(lmao)
 
@@ -231,20 +255,24 @@ Start:
     lda flags
     bit #%00000001
     beq +
-    lda #$C0
+    lda #$E1
     sta $21
     lda #$4
+    sta $22
+    lda #$8
     jmp ++
 +
     lda #$70
     sta $21
     lda #$8
+    sta $22
 ++
-    sta $211B
-    stz $211B           ; set up PPU multiplication(lmao)
 
     ldx #$01
 -
+    sta $211B
+    stz $211B           ; set up PPU multiplication(lmao)
+
     lda width, x
     ina
     sta $211C
@@ -257,6 +285,7 @@ Start:
 
     lda #$80
     sta $21
+    lda $22
     dex
     bpl -
 
@@ -353,66 +382,44 @@ place:
 
     stz $2115           ; set vram auto increment to low byte
 
+    sep #$10            ; 8 bit X and Y
+    inc width
+    inc height
 
     ldy #$00
-    sty $2117
-    stz $2116
+
+    lda #$20
+    sta $211B
+    stz $211B           ; set up PPU multiplication(lmao)
+
+--
+    ldx #$00
+    sty $211C
+    lda $2135
+    sta $2117
+    lda $2134
+    sta $2116
     lda #$02
-    jsr fill
-    ldx #$1F
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$3F
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$5F
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$7F
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$9F
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$BF
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$DF
-    stx $2116
-    sty $2117
-    jsr fill
-    ldx #$FF
-    stx $2116
-    sty $2117
-    jsr fill
-    ldy #$01
-    ldx #$1F
-    stx $2116
-    sty $2117
-    jsr fill
+-
+    sta $2118
+    inx
+    cpx width
+    bne -
 
+    iny
+    cpy height
+    bne --
 
-    jmp +
-fill:
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    sta $2118
-    rts
+    dec width
+    dec height
+    rep #$10            ; 16 bit X and Y
 
-+
+    jsl derive_s_pos
+    lda tx
+    sta c1sx
+    lda ty
+    sta c1sy
+
     lda #%10000000
     sta checkfor
 
@@ -433,6 +440,17 @@ forever:
     cmp #$FF
     beq -	; wait
 
+    lda $4218
+    bit #%00001111
+    bne +
+    lda $4016
+    bit #%00000001
+    bne +
+    lda c_hide
+    ora #%00000001
+    sta c_hide
+    jmp emptyclear
++
     lda $4218
     bit #%00000001      ; check for SNES mouse
     beq +
@@ -495,8 +513,18 @@ forever:
     beq +
     ina
     sta c1bx
++
 
-+   lda $4219
+    lda c1bx
+    sta tx
+    lda c1by
+    sta ty
+    jsl derive_s_pos
+    sta c1sy
+    lda tx
+    sta c1sx
+
+    lda $4219
     eor p1p
     and $4219
     bit #%10000000 ; B
@@ -520,47 +548,17 @@ forever:
 
     lda $4219
     sta p1p
-    lda $4218
-    sta p1p2
+;    lda $4218
+;    sta p1p2
 
+    jmp emptyclear
+++++
     lda flags
     bit #%00000001
     beq +
-    lda #$03
-    sta $20
-    lda boardy
-    clc
-    ror
-    sta $21
-    lda #$08
-    jmp ++
+    lsr boardy
 +
-    lda #$07
-    sta $20
-    lda boardy
-    sta $21
-    lda #$10
-++
-    sta $211B
-    stz $211B           ; set up PPU multiplication(lmao)
 
-    lda c1bx
-    sta $211C
-    lda $2134
-    clc
-    adc $20
-    adc boardx
-    sta c1sx
-
-    lda c1by
-    sta $211C
-    lda $2134
-    clc
-    adc $20
-    adc $21
-    sta c1sy
-    jmp emptyclear
-++++
     ldx #$10
 -   lda $4016
     lsr a
@@ -608,26 +606,25 @@ forever:
     lda boardx, x
     sta c1sx, x
 ++
-    lda c1sx, x
-    sec
-    sbc boardx, x
-    sta $4204
-    lda #$10
-    sta $4206
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    lda $4214
-;    clc
-;    adc #$10            ; bsnes >:(
-    sta c1bx, x
     dex
     bpl -
+
+    lda flags
+    bit #%00000001
+    beq +
+    asl boardy
++
+
+    lda c1sx
+    sta tx
+    lda c1sy
+    sta ty
+    jsl derive_b_pos
+    lda tx
+    sta c1bx
+    lda ty
+    sta c1by
+
 
     lda $4218
     eor p1p
@@ -717,6 +714,91 @@ tickrng:
     eor rng1
     sta rng3, y
     rts
+
+derive_s_pos:
+    lda flags
+    bit #%00000001
+    beq +
+    lda #$03
+    sta $20
+    lda boardy
+    clc
+    ror
+    sta $21
+    lda #$08
+    jmp ++
++
+    lda #$07
+    sta $20
+    lda boardy
+    sta $21
+    lda #$10
+++
+    sta $211B
+    stz $211B           ; set up PPU multiplication(lmao)
+
+    lda tx
+    sta $211C
+    lda $2134
+    clc
+    adc $20
+    adc boardx
+    sta tx
+
+    lda ty
+    sta $211C
+    lda $2134
+    clc
+    adc $20
+    adc $21
+    sta ty
+    rtl
+
+derive_b_pos:
+    lda flags
+    bit #%00000001
+    beq +
+    lsr boardy
++
+
+    ldx #$01
+-
+    lda tx, x
+    sec
+    sbc boardx, x
+    sta $4204
+    lda flags
+    bit #%00000001
+    beq +
+    lda #$8
+    jmp ++
++
+    lda #$10
+++
+    sta $4206
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    nop
+    lda $4214
+;    clc
+;    adc #$10            ; bsnes >:(
+    sta tx, x
+
+    dex
+    bpl -
+
+    lda flags
+    bit #%00000001
+    beq +
+    asl boardy
++
+
+    rtl
 
 settilepos:
     pha
