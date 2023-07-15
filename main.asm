@@ -15,58 +15,89 @@
 .DEFINE boardHeight = 10
 .DEFINE mines       = 10
 
-.DEFINE tx          = $00
-.DEFINE ty          = $01
+.DEFINE tp           = $00
+.DEFINE tp2          = $01
+.DEFINE tpp          = $02
+.DEFINE thold        = $03
+.DEFINE tport        = $04
+.DEFINE tbx          = $05
+.DEFINE tby          = $06
+.DEFINE tsx          = $07
+.DEFINE tsy          = $08
 
-.DEFINE width       = $02
-.DEFINE height      = $03
-.DEFINE swidth      = $04
-.DEFINE sheight     = $05
-.DEFINE boardx      = $06
-.DEFINE boardy      = $07
-.DEFINE c1sx        = $08
-.DEFINE c1sy        = $09
-.DEFINE c1bx        = $0A
-.DEFINE c1by        = $0B
-.DEFINE p1p         = $0C
-; .DEFINE p1p2        = $0D
-.DEFINE p1hold      = $0E
+.DEFINE width       = $09
+.DEFINE height      = $0A
+.DEFINE swidth      = $0B
+.DEFINE sheight     = $0C
+.DEFINE boardx      = $0D
+.DEFINE boardy      = $0E
 
-.DEFINE mousex      = $0F
-.DEFINE mousey      = $10
-.DEFINE c1sxp       = $11
-.DEFINE c1syp       = $12
+.DEFINE mousex      = $10
+.DEFINE mousey      = $11
+.DEFINE tsxp        = $12
+.DEFINE tsyp        = $13
 
-.DEFINE rng1        = $13
-.DEFINE rng2        = $14
-.DEFINE rng3        = $15
-.DEFINE rng4        = $16
+.DEFINE scopex      = $14
+.DEFINE scopey      = $15
+.DEFINE scopeofsx   = $16
+.DEFINE scopeofsy   = $17
 
-.DEFINE checkfor    = $17
+.DEFINE rng1        = $18
+.DEFINE rng2        = $19
+.DEFINE rng3        = $1A
+.DEFINE rng4        = $1B
 
-.DEFINE drawin      = $18
-.DEFINE drawout     = $19
+.DEFINE checkfor    = $1C
+
+.DEFINE drawin      = $1D
+.DEFINE drawout     = $1E
 .DEFINE drawqueue   = $7EFF00
 
-.DEFINE emptyin     = $1A
-.DEFINE emptyout    = $1B
+.DEFINE emptyin     = $1F
+.DEFINE emptyout    = $20
 .DEFINE emptyx = $7EFD00
 .DEFINE emptyy = $7EFE00
 
 .DEFINE board       = $7F0000
 
-.DEFINE c_hide      = $1C
+.DEFINE c_hide      = $21
+
+.DEFINE t0          = $E0
+.DEFINE t1          = $E1
+.DEFINE t2          = $E2
 
 
 .DEFINE flags       = $FF
+
+.DEFINE c1sx        = $0100
+.DEFINE c1sy        = $0101
+.DEFINE c1bx        = $0102
+.DEFINE c1by        = $0103
+.DEFINE p1p         = $0104
+.DEFINE p1hold      = $0105
+
+.DEFINE c2sx        = $0120
+.DEFINE c2sy        = $0121
+.DEFINE c2bx        = $0122
+.DEFINE c2by        = $0123
+.DEFINE p2p         = $0124
+.DEFINE p2hold      = $0125
+
 
 numtiles:
 .BYT $06, $08, $0A, $0C, $0E, $20, $22, $24, $26
 
 
 vblank:
-    lda #$8F            ; = 00001111
+    lda #$8F            ; = 10001111
     sta $2100           ; Turn off screen, full brightness
+
+    lda $213C
+    lda $213C
+    sta scopex
+    lda $213D
+    lda $213D
+    sta scopey
 
     sep #$10
     stz $2102 ; oam
@@ -83,6 +114,23 @@ vblank:
     lda c1sy
 ++
     sta $2104
+
+    lda #$02
+    sta $2102 ; oam
+    lda c2sx
+    sta $2104
+    lda c_hide
+    bit #%00000010
+    beq +
+    eor #%00000010
+    sta c_hide
+    lda #$E1
+    jmp ++
++
+    lda c2sy
+++
+    sta $2104
+
 update_tile:
     ldx drawout
     cpx drawin
@@ -129,10 +177,10 @@ Start:
                         ; populate GCRAM
 
     stz $2121
-    lda #%00001000      ; GGGRRRRR
+    lda #%11001110      ; GGGRRRRR
     sta $2122
-    lda #%00100001      ; 0BBBBBGG
-    sta $2122           ; very dark grey
+    lda #%00111001      ; 0BBBBBGG
+    sta $2122           ; somewhat light grey
 
     lda #$02
     sta $2121
@@ -203,18 +251,31 @@ Start:
     sta $212C           ; background 1 and objects to main screen
     sta $212D           ; and sub screen, for fun :)
 
-    lda #%00010101
+    lda #%00010001
     sta $2105           ; set background mode to 1(or 5, for fun :), and 16x16 tiles on BG1
 
-    lda #%00000001
-    sta $2133           ; Turn on interlacing for hi-res mode, for fun :)
+;    lda #%00000001
+;    sta $2133           ; Turn on interlacing for hi-res mode, for fun :)
 
-    lda #%00000001      ; set hi-res flag, for fun :)
+    lda #%00000010      ; set scope callibartion flag and/or hi-res flag, for fun :)
     sta flags
 
-    ; Joost was here =)
+    lda #$FF
+    sta c_hide
+
+    ; Joost was here =)                  <------ crime scene
 
     stz $2102
+    stz $2103           ; oam
+    stz $2104
+    stz $2104
+    lda #$2E
+    sta $2104
+    lda #%00100000
+    sta $2104
+
+    lda #$02
+    sta $2102
     stz $2103           ; oam
     stz $2104
     stz $2104
@@ -256,16 +317,16 @@ Start:
     bit #%00000001
     beq +
     lda #$E1
-    sta $21
+    sta t1
     lda #$4
-    sta $22
+    sta t2
     lda #$8
     jmp ++
 +
     lda #$70
-    sta $21
+    sta t1
     lda #$8
-    sta $22
+    sta t2
 ++
 
     ldx #$01
@@ -277,15 +338,15 @@ Start:
     ina
     sta $211C
     lda $2134
-    sta $20
-    lda $21
+    sta t0
+    lda t1
     sec
-    sbc $20
+    sbc t0
     sta boardx, x
 
     lda #$80
-    sta $21
-    lda $22
+    sta t1
+    lda t2
     dex
     bpl -
 
@@ -415,10 +476,19 @@ place:
     rep #$10            ; 16 bit X and Y
 
     jsl derive_s_pos
-    lda tx
+    lda tsx
     sta c1sx
-    lda ty
+    lda tsy
     sta c1sy
+
+    lda width
+    sta c2bx
+    sta tbx
+    jsl derive_s_pos
+    lda tsx
+    sta c2sx
+    lda tsy
+    sta c2sy
 
     lda #%10000000
     sta checkfor
@@ -438,245 +508,105 @@ forever:
 -   lda #%11111110
     ora $4212
     cmp #$FF
-    beq -	; wait
+    beq -	; wait for auto joypad read to finish
+
 
     lda $4218
-    bit #%00001111
-    bne +
-    lda $4016
-    bit #%00000001
-    bne +
-    lda c_hide
-    ora #%00000001
-    sta c_hide
-    jmp emptyclear
-+
-    lda $4218
-    bit #%00000001      ; check for SNES mouse
-    beq +
-    jmp ++++
-+
+    sta tp
     lda $4219
-    bit #%00001111
-    beq ++
+    sta tp2
+    lda p1p
+    sta tpp
     lda p1hold
-    dea
-    bne +
-    stz p1p
-    lda #$0A
-+
-
-    jmp +++
-++
-    lda #$14
-+++
-    sta p1hold
-
-    lda $4219
-    eor p1p
-    and $4219
-    bit #%00001000 ; up
-    beq +
-    lda c1by
-    beq +
-    dea
-    sta c1by
-
-+   lda $4219
-    eor p1p
-    and $4219
-    bit #%00000100 ; down
-    beq +
-    lda c1by
-    cmp height
-    beq +
-    ina
-    sta c1by
-
-+   lda $4219
-    eor p1p
-    and $4219
-    bit #%00000010 ; left
-    beq +
+    sta thold
     lda c1bx
-    beq +
-    dea
-    sta c1bx
-
-+   lda $4219
-    eor p1p
-    and $4219
-    bit #%00000001 ; right
-    beq +
-    lda c1bx
-    cmp width
-    beq +
-    ina
-    sta c1bx
-+
-
-    lda c1bx
-    sta tx
+    sta tbx
     lda c1by
-    sta ty
-    jsl derive_s_pos
-    sta c1sy
-    lda tx
-    sta c1sx
-
-    lda $4219
-    eor p1p
-    and $4219
-    bit #%10000000 ; B
-    beq +
-    lda c1bx
-    sta tx
-    lda c1by
-    sta ty
-    jsl flag
-+
-
-    lda $4218
-    bit #%10000000 ; A
-    beq +
-    lda c1bx
-    sta tx
-    lda c1by
-    sta ty
-    jsl check
-+
-
-    lda $4219
-    sta p1p
-;    lda $4218
-;    sta p1p2
-
-    jmp emptyclear
-++++
-    lda flags
-    bit #%00000001
-    beq +
-    lsr boardy
-+
-
-    ldx #$10
--   lda $4016
-    lsr a
-    rol mousex
-    rol mousey
-    dex
-    bne -
-
-
-    ldx #$01
--
-    lda c1sx, x
-    sta c1sxp, x
-    lda mousex, x
-    bit #%10000000
-    bne +
-    clc
-    adc c1sx, x
-    sta c1sx, x
-
-    lda c1sxp, x
-    bpl ++
-
-
-    lda boardx, x
-    clc
-    adc swidth, x
-    dea
-    cmp c1sx, x
-    bpl ++
-    sta c1sx, x
-    jmp ++
-+
-    and #%01111111
-    sta mousex, x
-    lda c1sx, x
-    sec
-    sbc mousex, x
-    sta c1sx, x
-
-    cmp boardx, x
-    bpl ++
-    lda c1sxp, x
-    bmi ++
-    lda boardx, x
-    sta c1sx, x
-++
-    dex
-    bpl -
-
-    lda flags
-    bit #%00000001
-    beq +
-    asl boardy
-+
-
+    sta tby
     lda c1sx
-    sta tx
+    sta tsx
     lda c1sy
-    sta ty
-    jsl derive_b_pos
-    lda tx
-    sta c1bx
-    lda ty
-    sta c1by
+    sta tsy
+    stz tport
 
+    jsl controls
 
-    lda $4218
-    eor p1p
-    and $4218
-    bit #%10000000 ; right click
-    beq +
-    lda c1bx
-    sta tx
-    lda c1by
-    sta ty
-    jsl flag
-+
-
-    lda $4218
-    bit #%01000000 ; left click
-    beq +
-    lda c1bx
-    sta tx
-    lda c1by
-    sta ty
-    jsl check
-+
-
-    lda $4218
-    eor p1p
-    and $4218
-    and #%11000000
-    cmp #%11000000
-    bne +
-    lda #$01
-    sta $4016
-    lda $4016
-    stz $4016
-+
-    lda $4218
+    lda tpp
     sta p1p
+    lda thold
+    sta p1hold
+    lda tbx
+    sta c1bx
+    lda tby
+    sta c1by
+    lda tsx
+    sta c1sx
+    lda tsy
+    sta c1sy
 
-emptyclear:
+    lda $421A
+    sta tp
+    lda $421B
+    sta tp2
+    lda p2p
+    sta tpp
+    lda p2hold
+    sta thold
+    lda c2bx
+    sta tbx
+    lda c2by
+    sta tby
+    lda c2sx
+    sta tsx
+    lda c2sy
+    sta tsy
+    lda #$01
+    sta tport
+
+    jsl controls
+
+    lda tpp
+    sta p2p
+    lda thold
+    sta p2hold
+    lda tbx
+    sta c2bx
+    lda tby
+    sta c2by
+    lda tsx
+    sta c2sx
+    lda tsy
+    sta c2sy
+
+
     sep #$10            ; 8 bit X and Y
     ldx emptyout
     cpx emptyin
     beq +
     lda emptyx, x
-    sta tx
+    sta tbx
     lda emptyy, x
-    sta ty
+    sta tby
     inx
     stx emptyout
     jsl check_around
 +
 
     rep #$10            ; 16 bit X and Y
+
+/*
+    lda #$8F            ; = 10001111
+    sta $2100           ; Turn off screen, full brightness
+    nop
+    nop
+    nop                 ; this will make a black streak appear whenever the processing is done for the frame
+    nop                 ; (at the time of writing still within vblank lmao)
+    nop
+    nop
+    lda #$0F            ; = 00001111
+    sta $2100           ; Turn on screen, full brightness
+*/
+
     jmp forever
 
 
@@ -715,43 +645,349 @@ tickrng:
     sta rng3, y
     rts
 
+controls:
+    sep #$10            ; 8 bit X and Y
+    lda tp
+    bit #%00001111
+    bne +
+    ldy tport
+    lda $4016, y
+    bit #%00000001
+    bne ++
+    stz tpp
+    jmp controls_hide_and_exit
++
+    jmp ++++
+++
+    rep #$10            ; 16 bit X and Y
+    lda tp2
+    bit #%00001111
+    beq ++
+    lda thold
+    dea
+    bne +
+    stz tpp
+    lda #$06
++
+
+    jmp +++
+++
+    lda #$14
++++
+    sta thold
+
+    lda tp2
+    eor tpp
+    and tp2
+    bit #%00001000 ; up
+    beq +
+    lda tby
+    beq +
+    dea
+    sta tby
+
++   lda tp2
+    eor tpp
+    and tp2
+    bit #%00000100 ; down
+    beq +
+    lda tby
+    cmp height
+    beq +
+    ina
+    sta tby
+
++   lda tp2
+    eor tpp
+    and tp2
+    bit #%00000010 ; left
+    beq +
+    lda tbx
+    beq +
+    dea
+    sta tbx
+
++   lda tp2
+    eor tpp
+    and tp2
+    bit #%00000001 ; right
+    beq +
+    lda tbx
+    cmp width
+    beq +
+    ina
+    sta tbx
++
+
+    jsl derive_s_pos
+
+    lda tp2
+    eor tpp
+    and tp2
+    bit #%10000000 ; B
+    beq +
+    jsl flag
++
+
+    lda tp
+    bit #%10000000 ; A
+    beq +
+    jsl check
++
+
+    lda tp2
+    sta tpp
+
+    rtl
+++++
+    and #%00001111
+    cmp #%00001111      ; check for super scope
+    beq +
+    jmp +++
++
+    lda tport
+    cmp #$01            ; if it's in controller port 1,
+    beq +
+    jmp controls_hide_and_exit ; bail, as the super scope only works in port 2
++
+    lda flags
+    bit #%00000010      ; check callibration flag
+    beq ++
+    lda #$80
+    sta tsx
+    lda #$70
+    sta tsy
+    lda tpp
+    bit #%01000000      ; cursor button
+    beq +
+    lda tp2
+    bit #%00000011      ; null and noise flags
+    bne +
+    lda tsx
+    sec
+    sbc scopex
+    sta scopeofsx
+
+    lda tsy
+    sec
+    sbc scopey
+    sta scopeofsy
+    lda flags
+    eor #%00000010      ; flip calibration flag
+    sta flags
++
+    lda tp2
+    sta tpp
+    rep #$10            ; 16 bit X and Y
+    rtl
+++
+    lda tp2
+    bit #%00010000      ; pause button
+    beq +
+    lda flags
+    ora #%00000010
+    sta flags
+    stz tpp
+    jmp controls_hide_and_exit
++
+
+    lda tp2
+    bit #%00000011      ; null and noise flags
+    beq +
+    lda tp2
+    sta tpp
+    jmp controls_hide_and_exit
++
+    lda tpp
+    bit #%11000000      ; fire and cursor buttons, we only want the cursor visible when one or both are pressed
+    bne +
+    lda tp2
+    sta tpp
+    jmp controls_hide_and_exit
++
+    rep #$10            ; 16 bit X and Y
+
+    lda scopex
+    clc
+    adc scopeofsx
+    sta tsx
+
+    lda scopey
+    clc
+    adc scopeofsy
+    sta tsy
+
+    jsl derive_b_pos
+
+    lda tpp
+    eor tp2
+    and tpp
+    bit #%01000000      ; cursor button(release)
+    beq +
+    jsl flag
++
+
+    lda tp2
+    bit #%10000000      ; fire button
+    beq +
+    jsl check
++
+    lda tp2
+    sta tpp
+    rtl
++++
+    rep #$10            ; 16 bit X and Y
+    lda flags
+    bit #%00000001
+    beq +
+    lsr boardy
++
+
+    sep #$10            ; 8 bit X and Y
+    ldx #$10
+    ldy tport
+-   lda $4016, y
+    lsr a
+    rol mousex
+    rol mousey
+    dex
+    bne -
+
+    rep #$10            ; 16 bit X and Y
+
+    ldx #$01
+-
+    lda tsx, x
+    sta tsxp, x
+    lda mousex, x
+    bit #%10000000
+    bne +
+    clc
+    adc tsx, x
+    sta tsx, x
+
+    lda tsxp, x
+    bpl ++
+
+
+    lda boardx, x
+    clc
+    adc swidth, x
+    dea
+    cmp tsx, x
+    bpl ++
+    sta tsx, x
+    jmp ++
++
+    and #%01111111
+    sta mousex, x
+    lda tsx, x
+    sec
+    sbc mousex, x
+    sta tsx, x
+
+    cmp boardx, x
+    bpl ++
+    lda tsxp, x
+    bmi ++
+    lda boardx, x
+    sta tsx, x
+++
+    dex
+    bpl -
+
+    lda flags
+    bit #%00000001
+    beq +
+    asl boardy
++
+
+    jsl derive_b_pos
+
+
+    lda tp
+    eor tpp
+    and tp
+    bit #%10000000 ; right click
+    beq +
+    jsl flag
++
+
+    lda tp
+    bit #%01000000 ; left click
+    beq +
+    jsl check
++
+
+    lda tp
+    eor tpp
+    and tp
+    and #%11000000
+    cmp #%11000000
+    bne +
+    sep #$10            ; 8 bit X and Y
+    ldy tport
+    lda #$01
+    sta $4016
+    lda $4016, y
+    stz $4016
+    rep #$10            ; 16 bit X and Y
++
+    lda tp
+    sta tpp
+
+    rtl
+controls_hide_and_exit:
+    ldy tport
+    lda #%00000001
+-
+    dey
+    bmi +
+    asl a
+    bra -
++
+    ora c_hide
+    sta c_hide
+    rep #$10            ; 16 bit X and Y
+    rtl
+
 derive_s_pos:
     lda flags
     bit #%00000001
     beq +
     lda #$03
-    sta $20
+    sta t0
     lda boardy
     clc
     ror
-    sta $21
+    sta t1
     lda #$08
     jmp ++
 +
     lda #$07
-    sta $20
+    sta t0
     lda boardy
-    sta $21
+    sta t1
     lda #$10
 ++
     sta $211B
     stz $211B           ; set up PPU multiplication(lmao)
 
-    lda tx
+    lda tbx
     sta $211C
     lda $2134
     clc
-    adc $20
+    adc t0
     adc boardx
-    sta tx
+    sta tsx
 
-    lda ty
+    lda tby
     sta $211C
     lda $2134
     clc
-    adc $20
-    adc $21
-    sta ty
+    adc t0
+    adc t1
+    sta tsy
     rtl
 
 derive_b_pos:
@@ -763,7 +999,7 @@ derive_b_pos:
 
     ldx #$01
 -
-    lda tx, x
+    lda tsx, x
     sec
     sbc boardx, x
     sta $4204
@@ -787,7 +1023,7 @@ derive_b_pos:
     lda $4214
 ;    clc
 ;    adc #$10            ; bsnes >:(
-    sta tx, x
+    sta tbx, x
 
     dex
     bpl -
@@ -809,11 +1045,11 @@ settilepos:
     stz $211B           ; set up PPU multiplication(lmao)
 
     ldx drawin
-    lda ty
+    lda tby
     sta $211C
     lda $2134
     clc
-    adc tx
+    adc tbx
     sta drawqueue, x
     lda $2135
     inx
@@ -824,7 +1060,7 @@ settilepos:
     rts
 
 check:
-    ldx tx
+    ldx tbx
     lda board, x
     bit #%01000000      ; is this tile flagged?
     bne +
@@ -835,7 +1071,7 @@ check:
     sta checkfor
     jsr check_tile
 
-    sty $20
+    sty t0
 
     lda #%01000000
     sta checkfor
@@ -847,7 +1083,7 @@ check:
 
     tya
 
-    cmp $20
+    cmp t0
     bmi +
     jsl check_around
 +
@@ -875,7 +1111,7 @@ check:
 +
     phx
     rep #$10            ; 16 bit X and Y
-    ldx tx
+    ldx tbx
     lda board, x
     ora #%01000000
     sta board, x
@@ -892,9 +1128,9 @@ check:
     cpy #$00
     bne +
     ldx emptyin
-    lda tx
+    lda tbx
     sta emptyx, x
-    lda ty
+    lda tby
     sta emptyy, x
     inx
     stx emptyin
@@ -903,14 +1139,14 @@ check:
 +
     tya
     rep #$10            ; 16 bit X and Y
-    ldx tx
+    ldx tbx
     ora board, x
     sta board, x
 +++
     rtl
 
 flag:
-    ldx tx
+    ldx tbx
     lda board, x
     bit #%00100000      ; has this tile already been cleared?
     bne +++
@@ -930,7 +1166,7 @@ flag:
     stx drawin
 
     rep #$10            ; 16 bit X and Y
-    ldx tx
+    ldx tbx
     lda board, x
     eor #%01000000
     sta board, x
@@ -939,36 +1175,38 @@ flag:
 
 check_around:
     rep #$10            ; 16 bit X and Y
-    dec tx
+    dec tbx
     jsr check_safe
-    dec ty
+    dec tby
     jsr check_safe
-    inc tx
+    inc tbx
     jsr check_safe
-    inc tx
+    inc tbx
     jsr check_safe
-    inc ty
+    inc tby
     jsr check_safe
-    inc ty
+    inc tby
     jsr check_safe
-    dec tx
+    dec tbx
     jsr check_safe
-    dec tx
+    dec tbx
     jsr check_safe
+    inc tbx
+    dec tby
     rtl
 
 check_safe:
-    lda tx
+    lda tbx
     bmi +++
     dea
     cmp width
     bpl +++
-    lda ty
+    lda tby
     bmi +++
     dea
     cmp height
     bpl +++
-    ldx tx
+    ldx tbx
     lda board, x
     bit #%01100000      ; is this tile flagged, or has it already been cleared?
     bne +++
@@ -992,7 +1230,7 @@ check_safe:
 +
     phx
     rep #$10            ; 16 bit X and Y
-    ldx tx
+    ldx tbx
     lda board, x
     ora #%01000000
     sta board, x
@@ -1009,9 +1247,9 @@ check_safe:
     cmp #$06
     bne +
     ldx emptyin
-    lda tx
+    lda tbx
     sta emptyx, x
-    lda ty
+    lda tby
     sta emptyy, x
     inx
     stx emptyin
@@ -1020,7 +1258,7 @@ check_safe:
 +
     tya
     rep #$10            ; 16 bit X and Y
-    ldx tx
+    ldx tbx
     ora board, x
     sta board, x
 +++
@@ -1029,28 +1267,28 @@ check_safe:
 check_tile:
 
     ldy #$0000
-    dec ty
-    ldx tx
+    dec tby
+    ldx tbx
     dex
     jsr check_step
     inx
     jsr check_step
     inx
     jsr check_step
-    inc ty
-    ldx tx
+    inc tby
+    ldx tbx
     dex
     jsr check_step
-    inc ty
-    ldx tx
+    inc tby
+    ldx tbx
     dex
     jsr check_step
     inx
     jsr check_step
     inx
     jsr check_step
-    dec ty
-    ldx tx
+    dec tby
+    ldx tbx
     inx
     jsr check_step
 
