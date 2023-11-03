@@ -173,9 +173,9 @@ _Loop09:
 
   LDX #$8008
   STX $4300         ;Set DMA mode to fixed source, BYTE to $2180
-  LDX #wram_fill_byte
+  LDX #zero
   STX $4302         ;Set source offset
-  LDA #:wram_fill_byte
+  LDA #:zero
   STA $4304         ;Set source bank
   LDX #$0000
   STX $4305         ;Set transfer size to 64k bytes
@@ -196,7 +196,7 @@ _Loop09:
   STA $1FFF
   RTL
 
-wram_fill_byte:
+zero:
 .db $00
 
 ;----------------------------------------------------------------------------

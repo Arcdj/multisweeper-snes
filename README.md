@@ -28,3 +28,13 @@ Multiplayer is here!
 - You can now mix and match any combination of joypads, mice, and up to one Super Scope, up to 2 controllers at once, at any time.
 - Made the background color brighter, this makes the Super Scope work at the edges of smaller boards. It doesn't work very well at the edges of larger boards.
 - The cursors are now always hidden on the first frame, so they don't appear on only that frame when nothing's plugged in.
+
+Friday 3 November 2023
+Some small changes, mostly under the hood.
+
+- Functions are now in a seperate source file from the main file.
+- Made a 16-bit binary to decimal function, using hardware division by 10.
+- Thanks to this, you can now see the number of mines remaining above the board.
+- I also added a purple 9, just for this
+- Added a rainbow function, that'll be fun
+- You can now hold the flag button down to place (or remove) multiple flags more quickly, without having to press it each time.
